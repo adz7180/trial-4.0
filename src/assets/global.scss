@@ -1,0 +1,17 @@
+// Core styles
+:root {
+  --primary: #1e88e5;
+  --text-primary: #2c3e50;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+// Three.js canvas
+canvas {
+  display: block;
+  outline: none;
+}
