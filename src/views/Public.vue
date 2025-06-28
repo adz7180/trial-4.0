@@ -1,77 +1,77 @@
 <template>
   <div class="public">
     <h1>Explore Public Builds</h1>
-    <p>Discover home designs from companies or the community.</p>
-    <div class="grid">
-      <div class="card" v-for="n in 6" :key="n">
-        <div class="card-image">[3D Preview]</div>
-        <h3>Modern Villa {{ n }}</h3>
-        <p>4 Bed • 3 Bath • 2800 sqft</p>
-        <button class="btn">View & Customize</button>
+    <div class="builds-list">
+      <div v-for="build in publicBuilds" :key="build.id" class="build-card">
+        <h3>{{ build.name }}</h3>
+        <button @click="selectBuild(build)">Open Build</button>
       </div>
+    </div>
+
+    <div v-if="selectedBuild">
+      <SceneViewer :modelUrl="selectedBuild.modelUrl" />
+      <CustomizationPanel />
     </div>
   </div>
 </template>
 
+<script>
+import SceneViewer from '../components/SceneViewer.vue'
+import CustomizationPanel from '../components/CustomizationPanel.vue'
+
+export default {
+  components: {
+    SceneViewer,
+    CustomizationPanel
+  },
+  data() {
+    return {
+      publicBuilds: [
+        { id: 1, name: 'Modern 3000 sq ft', modelUrl: '/models/house3000.glb' },
+        { id: 2, name: 'Elegant 5000 sq ft', modelUrl: '/models/house5000.glb' },
+        { id: 3, name: 'Cozy 1800 sq ft', modelUrl: '/models/house1800.glb' }
+      ],
+      selectedBuild: null
+    }
+  },
+  methods: {
+    selectBuild(build) {
+      this.selectedBuild = build;
+    }
+  }
+}
+</script>
+
 <style scoped>
 .public {
-  padding: 80px;
-  background: linear-gradient(to bottom, #fdfdfd, #eaeaea);
+  padding: 40px;
   text-align: center;
 }
 
-h1 {
-  font-size: 3rem;
-  margin-bottom: 10px;
+.builds-list {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 40px;
 }
 
-p {
-  color: #666;
-  margin-bottom: 50px;
+.build-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 40px;
-}
-
-.card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  box-shadow: 0 15px 30px rgba(0,0,0,0.1);
-  padding: 24px;
-  text-align: center;
-  transition: transform 0.3s ease;
-}
-
-.card:hover {
-  transform: translateY(-8px);
-}
-
-.card-image {
-  background: #f0f0f0;
-  height: 200px;
-  border-radius: 18px;
-  margin-bottom: 20px;
-}
-
-h3 {
-  margin: 0;
-}
-
-.btn {
-  margin-top: 18px;
-  padding: 10px 22px;
-  border-radius: 50px;
-  background: #111;
+button {
+  padding: 8px 16px;
+  background-color: #007bff;
   color: white;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-.btn:hover {
-  background: #333;
+button:hover {
+  opacity: 0.8;
 }
 </style>
