@@ -8,94 +8,136 @@
 <script>
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-// import load3DModel from '../utils/furnitureLoader'
-// import applyRealismShaders from '../utils/realismShaders'
-// import featureHandlers from '../utils/featureHandlers'
-import autoUpdateManager from '../utils/autoUpdateManager'
-import analytics from '../utils/analytics'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js'
 
 export default {
   name: 'SceneViewer',
+  props: ['modelUrl'],
   data() {
     return {
       scene: null,
       camera: null,
       renderer: null,
       controls: null,
-      loading: true,
+      composer: null,
+      loading: true
+    }
+  },
+  watch: {
+    modelUrl(newVal) {
+      if (newVal) {
+        this.loadModel(newVal);
+      }
     }
   },
   mounted() {
-    this.init3DScene()
-    window.addEventListener('resize', this.onWindowResize)
-    analytics.trackView('SceneViewer')
+    this.init3DScene();
+    window.addEventListener('resize', this.onWindowResize);
   },
   beforeDestroy() {
-    window.removeEventListener('resize', this.onWindowResize)
+    window.removeEventListener('resize', this.onWindowResize);
+    if (this.renderer) this.renderer.dispose();
   },
   methods: {
-    async init3DScene() {
-      this.scene = new THREE.Scene()
-      this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000)
-      this.camera.position.set(0, 1.6, 4)
+    init3DScene() {
+      const width = this.$refs.rendererCanvas.clientWidth;
+      const height = this.$refs.rendererCanvas.clientHeight;
 
-      this.renderer = new THREE.WebGLRenderer({ canvas: this.$refs.rendererCanvas, antialias: true })
-      this.renderer.setSize(window.innerWidth, window.innerHeight)
-      this.renderer.setPixelRatio(window.devicePixelRatio)
-      this.renderer.outputEncoding = THREE.sRGBEncoding
+      this.scene = new THREE.Scene();
+      this.scene.background = new THREE.Color(0xf0f0f0);
 
-      this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-      this.controls.target.set(0, 1.5, 0)
-      this.controls.update()
+      this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+      this.camera.position.set(5, 4, 5);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
-      directionalLight.position.set(5, 10, 7.5)
-      this.scene.add(ambientLight, directionalLight)
+      this.renderer = new THREE.WebGLRenderer({ canvas: this.$refs.rendererCanvas, antialias: true });
+      this.renderer.setSize(width, height);
+      this.renderer.outputEncoding = THREE.sRGBEncoding;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.5;
 
-      const model = await load3DModel(this.$store.state.currentModel)
-      this.scene.add(model)
+      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
-      applyRealismShaders(this.scene)
-      featureHandlers.applyInitialSettings(this.scene)
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+      directionalLight.position.set(5, 10, 7.5);
+      this.scene.add(ambientLight);
+      this.scene.add(directionalLight);
 
-      this.loading = false
-      this.animate()
+      const floorGeometry = new THREE.PlaneGeometry(50, 50);
+      const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4, metalness: 0.2 });
+      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.001;
+      floor.receiveShadow = true;
+      this.scene.add(floor);
+
+      const renderPass = new RenderPass(this.scene, this.camera);
+      const bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 1.2, 0.4, 0.85);
+      const ssaoPass = new SSAOPass(this.scene, this.camera, width, height);
+      ssaoPass.kernelRadius = 16;
+
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.addPass(renderPass);
+      this.composer.addPass(bloomPass);
+      this.composer.addPass(ssaoPass);
+
+      this.animate();
+    },
+    loadModel(url) {
+      const loader = new GLTFLoader();
+      loader.load(url, (gltf) => {
+        this.scene.add(gltf.scene);
+        this.loading = false;
+      }, undefined, (error) => {
+        console.error(error);
+      });
     },
     animate() {
-      requestAnimationFrame(this.animate)
-      this.controls.update()
-      this.renderer.render(this.scene, this.camera)
+      requestAnimationFrame(this.animate);
+      this.controls.update();
+      this.composer.render();
     },
     onWindowResize() {
-      this.camera.aspect = window.innerWidth / window.innerHeight
-      this.camera.updateProjectionMatrix()
-      this.renderer.setSize(window.innerWidth, window.innerHeight)
-    },
-  },
+      const width = this.$refs.rendererCanvas.clientWidth;
+      const height = this.$refs.rendererCanvas.clientHeight;
+
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(width, height);
+      this.composer.setSize(width, height);
+    }
+  }
 }
 </script>
 
 <style scoped>
 #scene-viewer {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  width: 100%;
+  height: 500px;
   position: relative;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
-  background: #ffffffee;
   width: 100%;
   height: 100%;
+  background: rgba(255,255,255,0.8);
   display: flex;
-  font-size: 24px;
-  align-items: center;
   justify-content: center;
-  font-weight: bold;
-  z-index: 10;
+  align-items: center;
+  font-size: 1.2rem;
 }
 </style>
+
